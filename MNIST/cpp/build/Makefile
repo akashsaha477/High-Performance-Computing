@@ -117,24 +117,24 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named mnist_cpp
+# Target rules for targets named mnist_train
 
 # Build rule for target.
-mnist_cpp: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 mnist_cpp
-.PHONY : mnist_cpp
+mnist_train: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 mnist_train
+.PHONY : mnist_train
 
 # fast build rule for target.
-mnist_cpp/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/mnist_cpp.dir/build.make CMakeFiles/mnist_cpp.dir/build
-.PHONY : mnist_cpp/fast
+mnist_train/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mnist_train.dir/build.make CMakeFiles/mnist_train.dir/build
+.PHONY : mnist_train/fast
 
 mnist_mlp.o: mnist_mlp.cpp.o
 .PHONY : mnist_mlp.o
 
 # target to build an object file
 mnist_mlp.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/mnist_cpp.dir/build.make CMakeFiles/mnist_cpp.dir/mnist_mlp.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mnist_train.dir/build.make CMakeFiles/mnist_train.dir/mnist_mlp.cpp.o
 .PHONY : mnist_mlp.cpp.o
 
 mnist_mlp.i: mnist_mlp.cpp.i
@@ -142,7 +142,7 @@ mnist_mlp.i: mnist_mlp.cpp.i
 
 # target to preprocess a source file
 mnist_mlp.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/mnist_cpp.dir/build.make CMakeFiles/mnist_cpp.dir/mnist_mlp.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mnist_train.dir/build.make CMakeFiles/mnist_train.dir/mnist_mlp.cpp.i
 .PHONY : mnist_mlp.cpp.i
 
 mnist_mlp.s: mnist_mlp.cpp.s
@@ -150,7 +150,7 @@ mnist_mlp.s: mnist_mlp.cpp.s
 
 # target to generate assembly for a file
 mnist_mlp.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/mnist_cpp.dir/build.make CMakeFiles/mnist_cpp.dir/mnist_mlp.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mnist_train.dir/build.make CMakeFiles/mnist_train.dir/mnist_mlp.cpp.s
 .PHONY : mnist_mlp.cpp.s
 
 # Help Target
@@ -161,7 +161,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
-	@echo "... mnist_cpp"
+	@echo "... mnist_train"
 	@echo "... mnist_mlp.o"
 	@echo "... mnist_mlp.i"
 	@echo "... mnist_mlp.s"
