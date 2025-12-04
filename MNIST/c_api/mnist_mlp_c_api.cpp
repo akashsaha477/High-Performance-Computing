@@ -1,7 +1,7 @@
-// mnist_mlp_c_api.cpp  -- updated: feed flattened [batch,784], use serve_keras_tensor input op
 #include <stdio.h>
 #include <stdlib.h>
 #include <tensorflow/c/c_api.h>
+
 #include <iostream>
 #include <vector>
 #include <fstream>
@@ -16,16 +16,16 @@ using namespace std;
 const string MODEL_DIR = "/Users/akashsaha/Desktop/High-Performance-Computing/MNIST/python/saved_mlp";
 const string TEST_IMAGES_PATH = "/Users/akashsaha/Desktop/High-Performance-Computing/MNIST/cpp/data/t10k-images-idx3-ubyte";
 const string TEST_LABELS_PATH = "/Users/akashsaha/Desktop/High-Performance-Computing/MNIST/cpp/data/t10k-labels-idx1-ubyte";
-// Use the placeholder node that the SavedModel expects
+
 const char* INPUT_OP_NAME = "serve_keras_tensor";
 const char* OUTPUT_OP_NAME = "StatefulPartitionedCall";
 
 const int BATCH_SIZE = 100;
 const int NUM_TEST_SAMPLES = 10000;
-const int IMAGE_SIZE = 784; // flattened 28*28
+const int IMAGE_SIZE = 784;
 const int NUM_CLASSES = 10;
 
-void write_accuracy_csv(float accuracy, int total_samples, int correct_predictions) {
+void write_accuracy_csv(float acc, int total, int correct) {
     ofstream file("mnist_accuracy.csv");
     if (!file.is_open()) {
         cerr << "Error: Could not open mnist_accuracy.csv" << endl;
@@ -39,21 +39,33 @@ void write_accuracy_csv(float accuracy, int total_samples, int correct_predictio
     cout << "Saved accuracy data to mnist_accuracy.csv" << endl;
 }
 
+
+
 void write_profiler_csv(const vector<double>& batch_times) {
     ofstream file("mnist_profiler.csv");
+
     if (!file.is_open()) {
         cerr << "Error: Could not open mnist_profiler.csv" << endl;
         return;
     }
+
     file << "Batch_ID,Time_ms,Samples_per_Batch\n";
+
     double total_time = 0;
+
+
+
     for (size_t i = 0; i < batch_times.size(); ++i) {
         file << i + 1 << "," << batch_times[i] << "," << BATCH_SIZE << "\n";
         total_time += batch_times[i];
     }
     file << "Total," << total_time << "," << batch_times.size() * BATCH_SIZE << "\n";
+
     file << "Average," << (batch_times.empty() ? 0.0 : total_time / batch_times.size()) << "," << BATCH_SIZE << "\n";
     file.close();
+
+
+
     cout << "Saved profiler data to mnist_profiler.csv" << endl;
 }
 
@@ -117,6 +129,10 @@ MNISTData load_mnist_data() {
     return data;
 }
 
+
+
+
+
 void NoOpDeallocator(void* data, size_t a, void* b) {}
 
 int main() {
@@ -125,6 +141,8 @@ int main() {
     TF_Status* status = TF_NewStatus();
     TF_SessionOptions* sess_opts = TF_NewSessionOptions();
     TF_Buffer* run_opts = NULL;
+
+
 
     const char* tags[] = {"serve"};
     TF_Graph* graph = TF_NewGraph();
@@ -159,9 +177,11 @@ int main() {
     vector<double> batch_times;
     int total_processed = 0;
 
-    // Flattened input buffer: BATCH_SIZE x IMAGE_SIZE
+    
     vector<float> batch_input_data(BATCH_SIZE * IMAGE_SIZE);
-    // IMPORTANT: shape matches the SavedModel placeholder [?,784]
+    
+
+
     int64_t input_dims[] = {BATCH_SIZE, IMAGE_SIZE};
     const int num_input_dims = 2;
 
@@ -170,10 +190,12 @@ int main() {
     for (int i = 0; i < NUM_TEST_SAMPLES; i += BATCH_SIZE) {
         for (int b = 0; b < BATCH_SIZE; ++b) {
             if (i + b < NUM_TEST_SAMPLES) {
-                // mnist.images are already flattened 784-length vectors
+                
                 copy(mnist.images[i+b].begin(), mnist.images[i+b].end(), batch_input_data.begin() + (b * IMAGE_SIZE));
-            } else {
-                // pad remaining rows with zeros (if last batch smaller)
+            } 
+            
+            else {
+                
                 fill(batch_input_data.begin() + (b * IMAGE_SIZE), batch_input_data.begin() + ((b+1) * IMAGE_SIZE), 0.0f);
             }
         }
@@ -183,6 +205,9 @@ int main() {
             batch_input_data.data(), (size_t)BATCH_SIZE * IMAGE_SIZE * sizeof(float),
             &NoOpDeallocator, 0
         );
+
+
+
 
         TF_Output inputs[] = {input_op};
         TF_Tensor* input_values[] = {input_tensor};
@@ -216,6 +241,8 @@ int main() {
 
         float* output_data = static_cast<float*>(TF_TensorData(output_values[0]));
 
+
+        
         for (int b = 0; b < BATCH_SIZE; ++b) {
             if (i + b >= NUM_TEST_SAMPLES) break;
 
@@ -244,7 +271,7 @@ int main() {
 
     float final_accuracy = (total_processed == 0) ? 0.0f : (float)correct_predictions / total_processed;
 
-    cout << "\n--- Results ---" << endl;
+    cout << "\n Results " << endl;
     cout << "Total Samples: " << total_processed << endl;
     cout << "Correct: " << correct_predictions << endl;
     cout << "Accuracy: " << final_accuracy * 100.0f << "%" << endl;
