@@ -1,3 +1,11 @@
+'''Code taken ispiration from
+https://www.tensorflow.org/datasets/keras_example
+https://github.com/gursky1/MNIST-Tensorflow-2
+https://github.com/lnmurthy/TensorFlow-ImageClassificaiton/blob/main/ImageClassification.ipynb
+'''
+
+
+# paths + hyperparams
 import os
 import time
 import csv
@@ -8,6 +16,8 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
+#directory paths
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EXPORT_DIR_BEST = os.path.join(BASE_DIR, "saved_mlp_best")
 EXPORT_DIR_LAST = os.path.join(BASE_DIR, "saved_mlp_last")
@@ -15,6 +25,9 @@ TIMING_CSV = os.path.join(BASE_DIR, "python_timings.csv")
 ACCURACY_CSV = os.path.join(BASE_DIR, "python_accuracy.csv")
 EVAL_CSV = os.path.join(BASE_DIR, "eval_data.csv")
 TB_LOGDIR = os.path.join(BASE_DIR, "tb_log", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+
+
+#hyperparameters
 
 EPOCHS = 100
 BATCH_SIZE = 128
@@ -30,10 +43,16 @@ os.environ['PYTHONHASHSEED'] = str(SEED)
 random.seed(SEED)
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
+
+#try to enable deterministic ops
+
 try:
     tf.config.experimental.enable_op_determinism()
 except:
     pass
+
+
+#timer for profiling
 
 def now(): return time.perf_counter()
 
@@ -45,11 +64,16 @@ if USE_TB:
 timings = []
 def record(step, t): timings.append({"step": step, "time_s": float(t)})
 
+
+#Load MNIST dataset
+
 t0 = now()
 (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
 t1 = now(); record("data_load", t1 - t0)
 
 t0 = now()
+
+# 28x28 = 784 for an MLP
 x_train = x_train.astype("float32") / 255.0
 x_test  = x_test.astype("float32") / 255.0
 x_train = x_train.reshape((-1, 784))
@@ -70,6 +94,8 @@ y_train_split = y_train[train_idx]
 x_val = x_train[val_idx]
 y_val = y_train[val_idx]
 
+
+#Return a small MLP suitable for MNIST
 def build_model(drop=0.2):
     return keras.Sequential([
         layers.Input(shape=(784,)),
@@ -90,6 +116,8 @@ t1 = now(); record("model_build_compile", t1 - t0)
 
 best_weights_path = os.path.join(BASE_DIR, "best_weights.weights.h5")
 
+
+# we only save weights not thw whole model
 callbacks = [
     keras.callbacks.ModelCheckpoint(best_weights_path,
         monitor='val_accuracy', save_best_only=True, save_weights_only=True, verbose=0),
@@ -102,8 +130,14 @@ callbacks = [
 if USE_TB:
     callbacks.append(keras.callbacks.TensorBoard(log_dir=TB_LOGDIR, histogram_freq=0))
 
+
+# input pipelines from in memory numpy arrays
+
 train_dataset = tf.data.Dataset.from_tensor_slices((x_train_split, y_train_split)).shuffle(10000, seed=SEED).batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
 val_dataset   = tf.data.Dataset.from_tensor_slices((x_val, y_val)).batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
+
+
+# for 1 epoch per loop lets us record perepoch times easily
 
 epoch_results = []
 
@@ -145,6 +179,9 @@ t0 = now()
 model.export(EXPORT_DIR_LAST)
 t1 = now(); record("export_last", t1 - t0)
 
+
+# if we saved best weights earlier it makes the same architecture to load them
+
 if os.path.exists(best_weights_path):
     best = build_model(0.2)
     best.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
@@ -153,6 +190,9 @@ if os.path.exists(best_weights_path):
     t0 = now()
     best.export(EXPORT_DIR_BEST)
     t1 = now(); record("export_best", t1 - t0)
+
+
+#inference timing on a small batch
 
 sample = x_test[:128]
 t0 = now()
@@ -178,6 +218,7 @@ with open(EVAL_CSV, "w", newline="") as f:
     header = ["label"] + [f"p{i}" for i in range(784)]
     w.writerow(header)
     for i in range(N):
+        #flattened pixel values (string)
         w.writerow([int(y_test[i])] + [f"{float(x):.6f}" for x in x_test[i]])
 
 print("done")
