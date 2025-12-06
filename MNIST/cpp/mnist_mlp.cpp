@@ -1,3 +1,34 @@
+/*How I organized this:
+
+Headers & aliases
+
+Big-endian integer reader
+
+MNIST image loaders
+
+Small RNG helper
+
+MLP class (constructor, forward, softmax, backward/update, predict)
+
+CSV logging
+
+training loop (data shuffling, batching, logging, eval)
+
+
+*/
+
+
+
+
+/* lReferences I used
+https://stackoverflow.com/questions/8286668/how-to-read-mnist-data-in-c?utm_source=chatgpt.com
+https://en.cppreference.com/w/cpp/numeric/random/normal_distribution.html
+https://github.com/gbiro/Cpp_MLP/tree/master
+
+
+*/
+
+
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -13,12 +44,20 @@
 using Clock = std::chrono::high_resolution_clock;
 using ms = std::chrono::duration<double, std::milli>;
 
+//IDX header integers are big-endian
 int readBigEndianInt(std::ifstream &f) {
+
+    // Read 4 bytes and convert from big-endian to host-endian 
     uint32_t v = 0;
     f.read(reinterpret_cast<char*>(&v), 4);
+    
+    //big-endian (MSB first)
     v = ((v & 0xFF) << 24) | ((v & 0xFF00) << 8) | ((v & 0xFF0000) >> 8) | ((v & 0xFF000000) >> 24);
     return static_cast<int>(v);
 }
+
+
+//explicit magic checks, count  reads, single-byte reads, and normalization.
 
 void loadMnistImages(const std::string &path, std::vector<std::vector<float>> &images) {
     std::ifstream f(path, std::ios::binary);
@@ -50,6 +89,9 @@ void loadMnistLabels(const std::string &path, std::vector<uint8_t> &labels) {
     }
 }
 
+
+//distribution on the fly
+
 float randNormal(std::mt19937 &rng, float mean = 0.0f, float stddev = 0.05f) {
     static std::normal_distribution<float> dist(mean, stddev);
     return dist(rng);
@@ -59,12 +101,14 @@ struct MLP {
     int inputDim;
     int hiddenDim;
     int outputDim;
-    std::vector<float> W1;
-    std::vector<float> b1;
-    std::vector<float> W2;
-    std::vector<float> b2;
+    std::vector<float> W1; // flattened: W1[i * hiddenDim + h]
+    std::vector<float> b1; // biases for hidden layer (size hiddenDim)
+    std::vector<float> W2; // flattened: W2 [h * outputDim + o]
+
+    std::vector<float> b2; // biases for output layer
     float learningRate;
 
+    //allocate and initialize weights (small Gaussian)
     MLP(int inD, int hidD, int outD, float lr, std::mt19937 &rng)
     : inputDim(inD), hiddenDim(hidD), outputDim(outD), learningRate(lr) {
         W1.resize(inputDim * hiddenDim);
@@ -77,14 +121,17 @@ struct MLP {
         for (auto &x : b2) x = 0.0f;
     }
 
+
+    // Forward: compute hidden = ReLU(x * W1 + b1)
     void forward(const std::vector<float> &x, std::vector<float> &hidden, std::vector<float> &logits) {
         hidden.assign(hiddenDim, 0.0f);
         for (int h = 0; h < hiddenDim; ++h) {
             float sum = b1[h];
-            int base = h;
+            int base = h;  // W1 layout uses i*hiddenDim + h
             for (int i = 0; i < inputDim; ++i) {
                 sum += x[i] * W1[i * hiddenDim + h];
             }
+            // ReLU activation
             hidden[h] = std::fmax(0.0f, sum);
         }
         logits.assign(outputDim, 0.0f);
@@ -104,11 +151,16 @@ struct MLP {
         for (auto &v : logits) { v = std::exp(v - maxv); s += v; }
         for (auto &v : logits) v /= s;
     }
+    
 
+    // Returns the scalar loss
     float backward_and_update(const std::vector<float> &x, const std::vector<float> &hidden,
                               std::vector<float> &logits, int label) {
         softmax_inplace(logits);
         float loss = -std::log(std::max(1e-8f, logits[label]));
+
+
+        // gradient of loss wrt logits using oftmax derivative
         std::vector<float> dlogits(outputDim);
         for (int o = 0; o < outputDim; ++o) dlogits[o] = logits[o];
         dlogits[label] -= 1.0f;
@@ -125,6 +177,7 @@ struct MLP {
         for (int h = 0; h < hiddenDim; ++h) {
             float sum = 0.0f;
             for (int o = 0; o < outputDim; ++o) sum += dlogits[o] * W2[h * outputDim + o];
+            //  pass gradient only if hidden>0
             dhidden[h] = (hidden[h] > 0.0f) ? sum : 0.0f;
         }
         for (int i = 0; i < inputDim; ++i) {
@@ -138,6 +191,9 @@ struct MLP {
         }
         return loss;
     }
+
+
+    //returns argmax
 
     int predict_label(const std::vector<float> &x) {
         std::vector<float> hidden(hiddenDim);

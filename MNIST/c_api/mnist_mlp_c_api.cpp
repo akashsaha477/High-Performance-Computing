@@ -1,3 +1,21 @@
+/* References I used for coding
+https://github.com/probablygab/nano-nn
+https://github.com/tensorflow/tensorflow/blob/master/tensorflow/c/c_api.h
+
+*/
+
+
+/*  
+reads MNIST IDX test files
+
+loads a TensorFlow SavedModel using the C API
+
+runs batched inference
+
+computes accuracy and saves to CSV
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <tensorflow/c/c_api.h>
@@ -25,6 +43,9 @@ const int NUM_TEST_SAMPLES = 10000;
 const int IMAGE_SIZE = 784;
 const int NUM_CLASSES = 10;
 
+
+//CSV file and writes: Total samples processed Number of correct predictions and Final accuracy
+
 void write_accuracy_csv(float acc, int total, int correct) {
     ofstream file("mnist_accuracy.csv");
     if (!file.is_open()) {
@@ -40,6 +61,9 @@ void write_accuracy_csv(float acc, int total, int correct) {
 }
 
 
+
+
+//records inference speed
 
 void write_profiler_csv(const vector<double>& batch_times) {
     ofstream file("mnist_profiler.csv");
@@ -69,11 +93,17 @@ void write_profiler_csv(const vector<double>& batch_times) {
     cout << "Saved profiler data to mnist_profiler.csv" << endl;
 }
 
+
+//converts big-endian format numbers to little-endian
+
 uint32_t swap_endian(uint32_t val) {
     val = ((val << 8) & 0xFF00FF00) | ((val >> 8) & 0xFF00FF);
     return (val << 16) | (val >> 16);
 }
 
+
+
+//TensorFlow C API uses raw float arrays , so it converts pixel values to binary amd saves it to  vectors
 struct MNISTData {
     vector<vector<float>> images;
     vector<int> labels;
@@ -131,11 +161,18 @@ MNISTData load_mnist_data() {
 
 
 
+//TensorFlow C API requires a deallocator function for tensors.
 
+//But I am passing memory owned by C++ containers, so TF not free it.
 
 void NoOpDeallocator(void* data, size_t a, void* b) {}
 
 int main() {
+
+
+
+    // Loading SavedModel
+
     MNISTData mnist = load_mnist_data();
 
     TF_Status* status = TF_NewStatus();
@@ -187,10 +224,32 @@ int main() {
 
     cout << "Starting Inference on " << NUM_TEST_SAMPLES << " samples..." << endl;
 
+
+
+
+
+
+
     for (int i = 0; i < NUM_TEST_SAMPLES; i += BATCH_SIZE) {
         for (int b = 0; b < BATCH_SIZE; ++b) {
             if (i + b < NUM_TEST_SAMPLES) {
-                
+
+
+
+
+/*inference:
+
+Convert MNIST batch into a flat float array
+
+Wrap it into a TF tensor
+
+Run the model using TF_SessionRun
+
+Collect predictions
+
+Update accuracy counters
+
+Measure time for profiling*/
                 copy(mnist.images[i+b].begin(), mnist.images[i+b].end(), batch_input_data.begin() + (b * IMAGE_SIZE));
             } 
             
@@ -222,6 +281,10 @@ int main() {
             outputs, output_values, 1,
             NULL, 0, NULL, status
         );
+
+
+
+        // Accuracy Output + Cleanup
 
         auto end = chrono::high_resolution_clock::now();
         chrono::duration<double, milli> duration = end - start;
@@ -268,6 +331,11 @@ int main() {
             cout << "Processed batch " << (i / BATCH_SIZE) << "..." << endl;
         }
     }
+
+
+
+    // Accuracy Output + Cleanup
+
 
     float final_accuracy = (total_processed == 0) ? 0.0f : (float)correct_predictions / total_processed;
 
