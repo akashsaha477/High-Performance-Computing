@@ -41,7 +41,7 @@ TB_LOGDIR = os.path.join(BASE_DIR, "tb_log", datetime.datetime.now().strftime("%
 #hyperparameters
 
 EPOCHS = 100
-BATCH_SIZE = 64           # reduced batch size (often helps)
+BATCH_SIZE = 1024          
 N_EVAL = 1000
 VALIDATION_SPLIT = 0.1
 SEED = 12345
