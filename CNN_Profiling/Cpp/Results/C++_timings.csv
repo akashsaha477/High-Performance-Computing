@@ -1,0 +1,4 @@
+step,time_s
+data load,0.100381
+model load,0.175568
+inference_total,184.839250
