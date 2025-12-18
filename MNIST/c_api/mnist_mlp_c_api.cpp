@@ -31,7 +31,7 @@ computes accuracy and saves to CSV
 
 using namespace std;
 
-const string MODEL_DIR = "/Users/akashsaha/Desktop/High-Performance-Computing/MNIST/python/saved_mlp";
+const string MODEL_DIR = "/Users/akashsaha/Desktop/High-Performance-Computing/CNN_Profiling/Cpp/saved_mlp_best";
 const string TEST_IMAGES_PATH = "/Users/akashsaha/Desktop/High-Performance-Computing/MNIST/cpp/data/t10k-images-idx3-ubyte";
 const string TEST_LABELS_PATH = "/Users/akashsaha/Desktop/High-Performance-Computing/MNIST/cpp/data/t10k-labels-idx1-ubyte";
 

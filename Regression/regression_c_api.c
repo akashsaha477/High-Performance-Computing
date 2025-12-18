@@ -1,3 +1,14 @@
+/*
+Code has been taken inspiration from
+
+https://gist.github.com/asimshankar/7c9f8a9b04323e93bb217109da8c7ad2#files
+
+https://gist.github.com/pfigue/9ce8a2c0b14a2542acd7?utm_source=chatgpt.com
+
+
+*/
+
+
 #include <tensorflow/c/c_api.h>
 #include <stdio.h>
 #include <stdlib.h>
