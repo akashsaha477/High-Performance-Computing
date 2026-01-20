@@ -1,0 +1,2 @@
+test_loss,test_accuracy,num_gpus,batch_size
+1.2177077531814575,0.7615000009536743,1,128

@@ -1,0 +1,2 @@
+intra_threads,interop_threads,train_time_sec,test_accuracy
+8,2,3833.391766667017,0.5781

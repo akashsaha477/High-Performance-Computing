@@ -1,0 +1,10 @@
+stage,time_sec
+environment_setup,0.5873805699999934
+dataset_load_and_preprocess,5.847778210000001
+train_val_split,0.18208524599998555
+tfdata_pipeline_build,3.7036462870000264
+model_build_and_compile,1.229727548000028
+single_train_step,12.990964371000018
+full_training_time,302.714516101
+validation_time,1.7827051110000411
+test_inference_time,2.9558003540000755

@@ -1,0 +1,2 @@
+cores,threads,train_time_sec,test_accuracy
+1,1,2827.7800270829466,0.5707
