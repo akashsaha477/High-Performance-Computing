@@ -1,0 +1,2 @@
+intra_threads,inter_threads,batch_size,data_load_time_sec,model_init_time_sec,train_time_total_sec,forward_time_sec,backward_time_sec,optimizer_time_sec,eval_time_sec,test_accuracy
+2,2,256,2.7326292369998555,0.006256813999698352,2458.0870639330005,893.5368262409957,1518.3485055590013,1.1624869960046453,30.140027782999823,0.5647
