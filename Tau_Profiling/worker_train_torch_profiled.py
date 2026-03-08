@@ -3,11 +3,20 @@ import sys
 import time
 import random
 import numpy as np
-import pandas as pd
+from tqdm import tqdm
+import pytau
+
+# =============================
+# ARGUMENTS
+# =============================
 
 INTRA = int(sys.argv[1])
 INTER = int(sys.argv[2])
 BATCH = int(sys.argv[3])
+
+# =============================
+# THREAD SETTINGS
+# =============================
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["OMP_NUM_THREADS"] = str(INTRA)
@@ -21,12 +30,32 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
 
+# =============================
+# REPRODUCIBILITY
+# =============================
+
 SEED = 12345
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 random.seed(SEED)
 
-t_data_start = time.perf_counter()
+# =============================
+# TAU TIMERS
+# =============================
+
+data_timer = pytau.profileTimer("DATA_LOADING")
+model_timer = pytau.profileTimer("MODEL_INIT")
+train_timer = pytau.profileTimer("TRAINING_LOOP")
+forward_timer = pytau.profileTimer("FORWARD")
+backward_timer = pytau.profileTimer("BACKWARD")
+optim_timer = pytau.profileTimer("OPTIMIZER")
+eval_timer = pytau.profileTimer("EVALUATION")
+
+# =============================
+# DATA LOADING
+# =============================
+
+pytau.start(data_timer)
 
 transform = transforms.ToTensor()
 
@@ -58,9 +87,13 @@ test_loader = torch.utils.data.DataLoader(
     num_workers=0
 )
 
-data_time = time.perf_counter() - t_data_start
+pytau.stop(data_timer)
 
-t_model_start = time.perf_counter()
+# =============================
+# MODEL
+# =============================
+
+pytau.start(model_timer)
 
 class BasicBlock(nn.Module):
     def __init__(self, ch):
@@ -97,70 +130,55 @@ model = SmallResNet()
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.05, momentum=0.9)
 
-model_init_time = time.perf_counter() - t_model_start
+pytau.stop(model_timer)
 
-forward_time = 0.0
-backward_time = 0.0
-optim_time = 0.0
+# =============================
+# TRAINING
+# =============================
 
-t_train_start = time.perf_counter()
+EPOCHS = 5
+
+pytau.start(train_timer)
 
 model.train()
-for _ in range(5):
-    for x, y in train_loader:
+for epoch in range(EPOCHS):
 
-        t0 = time.perf_counter()
+    print(f"\nEpoch {epoch+1}/{EPOCHS}")
+
+    for x, y in tqdm(train_loader):
+
+        pytau.start(forward_timer)
         out = model(x)
         loss = criterion(out, y)
-        forward_time += time.perf_counter() - t0
+        pytau.stop(forward_timer)
 
-        t1 = time.perf_counter()
+        pytau.start(backward_timer)
         optimizer.zero_grad()
         loss.backward()
-        backward_time += time.perf_counter() - t1
+        pytau.stop(backward_timer)
 
-        t2 = time.perf_counter()
+        pytau.start(optim_timer)
         optimizer.step()
-        optim_time += time.perf_counter() - t2
+        pytau.stop(optim_timer)
 
-train_time_total = time.perf_counter() - t_train_start
+pytau.stop(train_timer)
 
-t_eval_start = time.perf_counter()
+# =============================
+# EVALUATION
+# =============================
+
+pytau.start(eval_timer)
 
 model.eval()
 correct = 0
 total = 0
+
 with torch.no_grad():
     for x, y in test_loader:
         pred = model(x).argmax(1)
         correct += (pred == y).sum().item()
         total += y.size(0)
 
-eval_time = time.perf_counter() - t_eval_start
-test_acc = correct / total
+pytau.stop(eval_timer)
 
-BASE_DIR = "/Users/akashsaha/Desktop/High-Performance-Computing/Tau_Profiling/hpc_torch_benchmarks"
-CSV_DIR = os.path.join(BASE_DIR, "results_torch", "csv")
-os.makedirs(CSV_DIR, exist_ok=True)
-
-df = pd.DataFrame([{
-    "intra_threads": INTRA,
-    "inter_threads": INTER,
-    "batch_size": BATCH,
-    "data_load_time_sec": data_time,
-    "model_init_time_sec": model_init_time,
-    "train_time_total_sec": train_time_total,
-    "forward_time_sec": forward_time,
-    "backward_time_sec": backward_time,
-    "optimizer_time_sec": optim_time,
-    "eval_time_sec": eval_time,
-    "test_accuracy": test_acc
-}])
-
-fname = os.path.join(
-    CSV_DIR,
-    f"profile_intra{INTRA}_inter{INTER}_batch{BATCH}.csv"
-)
-
-df.to_csv(fname, index=False)
-print("PROFILE SAVED:", fname)
+print("Accuracy:", correct/total)
