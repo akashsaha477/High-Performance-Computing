@@ -1,49 +1,38 @@
 import os
 import sys
-import time
-import random
-import numpy as np
-from tqdm import tqdm
-
-# =============================
-# ARGUMENTS
-# =============================
-
-INTRA = int(sys.argv[1])
-INTER = int(sys.argv[2])
-BATCH = int(sys.argv[3])
-
-# =============================
-# THREAD SETTINGS
-# =============================
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-os.environ["OMP_NUM_THREADS"] = str(INTRA)
-os.environ["MKL_NUM_THREADS"] = str(INTRA)
-
+import pytau
 import torch
-torch.set_num_threads(INTRA)
-torch.set_num_interop_threads(INTER)
-
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-# =============================
-# REPRODUCIBILITY
-# =============================
+# -----------------------------
+# TAU initialization
+# -----------------------------
+pytau.setNode(0)
 
-SEED = 12345
-torch.manual_seed(SEED)
-np.random.seed(SEED)
-random.seed(SEED)
+data_timer = pytau.profileTimer("DATA_LOADING")
+model_timer = pytau.profileTimer("MODEL_INIT")
+train_timer = pytau.profileTimer("TRAINING_LOOP")
+forward_timer = pytau.profileTimer("FORWARD")
+backward_timer = pytau.profileTimer("BACKWARD")
+optim_timer = pytau.profileTimer("OPTIMIZER")
+eval_timer = pytau.profileTimer("EVALUATION")
 
-# =============================
+# -----------------------------
+# Arguments
+# -----------------------------
+INTRA = int(sys.argv[1])
+INTER = int(sys.argv[2])
+BATCH = int(sys.argv[3])
+
+torch.set_num_threads(INTRA)
+torch.set_num_interop_threads(INTER)
+
+# -----------------------------
 # DATA LOADING
-# =============================
-
-print("\nLoading CIFAR10 dataset...")
-t_data_start = time.perf_counter()
+# -----------------------------
+pytau.start(data_timer)
 
 transform = transforms.ToTensor()
 
@@ -75,42 +64,36 @@ test_loader = torch.utils.data.DataLoader(
     num_workers=0
 )
 
-data_time = time.perf_counter() - t_data_start
-print("Data loading time:", data_time)
+pytau.stop(data_timer)
 
-# =============================
-# MODEL
-# =============================
-
-print("\nInitializing model...")
-t_model_start = time.perf_counter()
+# -----------------------------
+# MODEL INIT
+# -----------------------------
+pytau.start(model_timer)
 
 class BasicBlock(nn.Module):
     def __init__(self, ch):
         super().__init__()
-        self.c1 = nn.Conv2d(ch, ch, 3, padding=1, bias=False)
-        self.b1 = nn.BatchNorm2d(ch)
-        self.c2 = nn.Conv2d(ch, ch, 3, padding=1, bias=False)
-        self.b2 = nn.BatchNorm2d(ch)
+        self.c1 = nn.Conv2d(ch, ch, 3, padding=1)
+        self.c2 = nn.Conv2d(ch, ch, 3, padding=1)
 
     def forward(self, x):
         r = x
-        x = torch.relu(self.b1(self.c1(x)))
-        x = self.b2(self.c2(x))
+        x = torch.relu(self.c1(x))
+        x = self.c2(x)
         return torch.relu(x + r)
 
 class SmallResNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.c = nn.Conv2d(3, 32, 3, padding=1, bias=False)
-        self.b = nn.BatchNorm2d(32)
+        self.c = nn.Conv2d(3, 32, 3, padding=1)
         self.r1 = BasicBlock(32)
         self.r2 = BasicBlock(32)
         self.pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Linear(32, 10)
 
     def forward(self, x):
-        x = torch.relu(self.b(self.c(x)))
+        x = torch.relu(self.c(x))
         x = self.r1(x)
         x = self.r2(x)
         x = self.pool(x).flatten(1)
@@ -118,84 +101,58 @@ class SmallResNet(nn.Module):
 
 model = SmallResNet()
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=0.05, momentum=0.9)
+optimizer = optim.SGD(model.parameters(), lr=0.05)
 
-model_init_time = time.perf_counter() - t_model_start
-print("Model initialization time:", model_init_time)
+pytau.stop(model_timer)
 
-# =============================
-# TRAINING
-# =============================
-
-EPOCHS = 5
-
-forward_time = 0
-backward_time = 0
-optim_time = 0
-
-print("\nStarting training...")
+# -----------------------------
+# TRAINING LOOP
+# -----------------------------
+pytau.start(train_timer)
 
 model.train()
-t_train_start = time.perf_counter()
 
-for epoch in range(EPOCHS):
+for x, y in train_loader:
 
-    print(f"\nEpoch {epoch+1}/{EPOCHS}")
+    # Forward
+    pytau.start(forward_timer)
+    out = model(x)
+    loss = criterion(out, y)
+    pytau.stop(forward_timer)
 
-    for x, y in tqdm(train_loader, desc="Training", ncols=100):
+    # Backward
+    pytau.start(backward_timer)
+    optimizer.zero_grad()
+    loss.backward()
+    pytau.stop(backward_timer)
 
-        # Forward
-        t0 = time.perf_counter()
-        out = model(x)
-        loss = criterion(out, y)
-        forward_time += time.perf_counter() - t0
+    # Optimizer
+    pytau.start(optim_timer)
+    optimizer.step()
+    pytau.stop(optim_timer)
 
-        # Backward
-        t1 = time.perf_counter()
-        optimizer.zero_grad()
-        loss.backward()
-        backward_time += time.perf_counter() - t1
+pytau.stop(train_timer)
 
-        # Optimizer
-        t2 = time.perf_counter()
-        optimizer.step()
-        optim_time += time.perf_counter() - t2
-
-
-train_time = time.perf_counter() - t_train_start
-
-# =============================
+# -----------------------------
 # EVALUATION
-# =============================
-
-print("\nEvaluating model...")
-t_eval_start = time.perf_counter()
+# -----------------------------
+pytau.start(eval_timer)
 
 model.eval()
 correct = 0
 total = 0
 
 with torch.no_grad():
-    for x, y in tqdm(test_loader, desc="Testing", ncols=100):
+    for x, y in test_loader:
         pred = model(x).argmax(1)
         correct += (pred == y).sum().item()
         total += y.size(0)
 
-eval_time = time.perf_counter() - t_eval_start
+pytau.stop(eval_timer)
 
-test_acc = correct / total
+print("Accuracy:", correct / total)
 
-# =============================
-# RESULTS
-# =============================
-
-print("\n==============================")
-print("RESULTS")
-print("==============================")
-
-print("Training time:", train_time)
-print("Forward time:", forward_time)
-print("Backward time:", backward_time)
-print("Optimizer time:", optim_time)
-print("Evaluation time:", eval_time)
-print("Test accuracy:", test_acc)
+# -----------------------------
+# Dump TAU database
+# -----------------------------
+pytau.dbDump()
