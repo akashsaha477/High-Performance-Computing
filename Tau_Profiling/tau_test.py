@@ -6,9 +6,7 @@ import numpy as np
 from tqdm import tqdm
 import pytau
 
-# =============================
-# TAU HELPERS
-# =============================
+
 
 def tau_timer(name):
     return pytau.profileTimer(name)
@@ -19,17 +17,13 @@ def start(timer):
 def stop(timer):
     pytau.stop(timer)
 
-# =============================
-# ARGUMENTS
-# =============================
+
 
 INTRA = int(sys.argv[1])
 INTER = int(sys.argv[2])
 BATCH = int(sys.argv[3])
 
-# =============================
-# THREAD SETTINGS
-# =============================
+
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["OMP_NUM_THREADS"] = str(INTRA)
@@ -43,18 +37,13 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-# =============================
-# REPRODUCIBILITY
-# =============================
 
 SEED = 12345
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 random.seed(SEED)
 
-# =============================
-# TAU TIMERS
-# =============================
+
 
 DATA_LOADING = tau_timer("DATA_LOADING")
 MODEL_INIT = tau_timer("MODEL_INIT")
@@ -64,9 +53,6 @@ BACKWARD = tau_timer("BACKWARD")
 OPTIMIZER = tau_timer("OPTIMIZER")
 EVALUATION = tau_timer("EVALUATION")
 
-# =============================
-# DATA LOADING
-# =============================
 
 start(DATA_LOADING)
 
@@ -108,9 +94,7 @@ print("Data loading time:", data_time)
 
 stop(DATA_LOADING)
 
-# =============================
-# MODEL
-# =============================
+
 
 start(MODEL_INIT)
 
@@ -157,9 +141,7 @@ print("Model initialization time:", model_init_time)
 
 stop(MODEL_INIT)
 
-# =============================
-# TRAINING
-# =============================
+
 
 EPOCHS = 5
 
@@ -211,9 +193,7 @@ for epoch in range(EPOCHS):
 
 stop(TRAINING_LOOP)
 
-# =============================
-# EVALUATION
-# =============================
+
 
 start(EVALUATION)
 
@@ -243,9 +223,7 @@ stop(EVALUATION)
 
 test_acc = correct / total
 
-# =============================
-# RESULTS
-# =============================
+
 
 print("\n==============================")
 print("RESULTS")
@@ -257,8 +235,6 @@ print("Optimizer time:", optim_time)
 print("Evaluation time:", eval_time)
 print("Test accuracy:", test_acc)
 
-# =============================
-# WRITE DUMP FILE
-# =============================
+
 
 pytau.dbDump()
