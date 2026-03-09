@@ -6,17 +6,12 @@ import numpy as np
 from tqdm import tqdm
 import pytau
 
-# =============================
-# ARGUMENTS
-# =============================
+
 
 INTRA = int(sys.argv[1])
 INTER = int(sys.argv[2])
 BATCH = int(sys.argv[3])
 
-# =============================
-# THREAD SETTINGS
-# =============================
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["OMP_NUM_THREADS"] = str(INTRA)
@@ -30,18 +25,14 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-# =============================
-# REPRODUCIBILITY
-# =============================
+
 
 SEED = 12345
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 random.seed(SEED)
 
-# =============================
-# TAU TIMERS
-# =============================
+
 
 data_timer = pytau.profileTimer("DATA_LOADING")
 model_timer = pytau.profileTimer("MODEL_INIT")
@@ -51,9 +42,7 @@ backward_timer = pytau.profileTimer("BACKWARD")
 optim_timer = pytau.profileTimer("OPTIMIZER")
 eval_timer = pytau.profileTimer("EVALUATION")
 
-# =============================
-# DATA LOADING
-# =============================
+
 
 pytau.start(data_timer)
 
@@ -89,9 +78,7 @@ test_loader = torch.utils.data.DataLoader(
 
 pytau.stop(data_timer)
 
-# =============================
-# MODEL
-# =============================
+
 
 pytau.start(model_timer)
 
@@ -132,9 +119,7 @@ optimizer = optim.SGD(model.parameters(), lr=0.05, momentum=0.9)
 
 pytau.stop(model_timer)
 
-# =============================
-# TRAINING
-# =============================
+
 
 EPOCHS = 5
 
@@ -163,9 +148,7 @@ for epoch in range(EPOCHS):
 
 pytau.stop(train_timer)
 
-# =============================
-# EVALUATION
-# =============================
+
 
 pytau.start(eval_timer)
 

@@ -6,9 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-# -----------------------------
-# TAU initialization
-# -----------------------------
+
 pytau.setNode(0)
 
 data_timer = pytau.profileTimer("DATA_LOADING")
@@ -19,9 +17,7 @@ backward_timer = pytau.profileTimer("BACKWARD")
 optim_timer = pytau.profileTimer("OPTIMIZER")
 eval_timer = pytau.profileTimer("EVALUATION")
 
-# -----------------------------
-# Arguments
-# -----------------------------
+
 INTRA = int(sys.argv[1])
 INTER = int(sys.argv[2])
 BATCH = int(sys.argv[3])
@@ -29,9 +25,7 @@ BATCH = int(sys.argv[3])
 torch.set_num_threads(INTRA)
 torch.set_num_interop_threads(INTER)
 
-# -----------------------------
-# DATA LOADING
-# -----------------------------
+
 pytau.start(data_timer)
 
 transform = transforms.ToTensor()
@@ -66,9 +60,7 @@ test_loader = torch.utils.data.DataLoader(
 
 pytau.stop(data_timer)
 
-# -----------------------------
-# MODEL INIT
-# -----------------------------
+
 pytau.start(model_timer)
 
 class BasicBlock(nn.Module):
@@ -105,9 +97,7 @@ optimizer = optim.SGD(model.parameters(), lr=0.05)
 
 pytau.stop(model_timer)
 
-# -----------------------------
-# TRAINING LOOP
-# -----------------------------
+
 pytau.start(train_timer)
 
 model.train()
@@ -133,9 +123,8 @@ for x, y in train_loader:
 
 pytau.stop(train_timer)
 
-# -----------------------------
-# EVALUATION
-# -----------------------------
+
+
 pytau.start(eval_timer)
 
 model.eval()
@@ -152,7 +141,5 @@ pytau.stop(eval_timer)
 
 print("Accuracy:", correct / total)
 
-# -----------------------------
-# Dump TAU database
-# -----------------------------
+
 pytau.dbDump()
